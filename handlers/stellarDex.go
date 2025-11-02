@@ -2,10 +2,10 @@ package tx_handlers
 
 import (
 	"fmt"
-	"stellar-test/models"
-	"stellar-test/utils"
 	"time"
 
+	"github.com/celerfi/stellar-indexer-go/models"
+	"github.com/celerfi/stellar-indexer-go/utils"
 	"github.com/stellar/go/ingest"
 	"github.com/stellar/go/xdr"
 )

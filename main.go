@@ -7,15 +7,16 @@ import (
 	"io"
 	"log"
 	"os"
-	tx_handlers "stellar-test/handlers"
-	"stellar-test/models"
+
 	"time"
 
+	tx_handlers "github.com/celerfi/stellar-indexer-go/handlers"
+	"github.com/celerfi/stellar-indexer-go/models"
 	"github.com/stellar/go/ingest"
 	"github.com/stellar/go/ingest/ledgerbackend"
-	"github.com/stellar/go/network"
 	"github.com/stellar/go/xdr"
 	"github.com/stellar/stellar-rpc/client"
+	"github.com/stellar/go/network"
 )
 
 const (

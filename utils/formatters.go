@@ -2,8 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"stellar-test/models"
 
+	"github.com/celerfi/stellar-indexer-go/models"
 	"github.com/stellar/go/xdr"
 )
 
