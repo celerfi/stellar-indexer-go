@@ -1,0 +1,9 @@
+package utils
+
+const (
+	DEX_NAME_STELLAR_DEX = "STELLAR-DEX"
+
+	ORDERBOOK_TX_STATUS_MATCHED = "matched"
+	ORDERBOOK_TX_STATUS_POSTED = "posted"
+	ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED = "partially-matched"
+)
