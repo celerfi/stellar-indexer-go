@@ -1,7 +1,7 @@
 package tx_handlers
 
 import (
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/celerfi/stellar-indexer-go/models"
@@ -40,8 +40,8 @@ func HandleManageBuyTransaction(
 			OperationIndex:  opIndex,
 			DexName:         utils.DEX_NAME_STELLAR_DEX,
 			SourceAccount:   op.SourceAccount.Address(),
-			MarketBuying:    utils.FormatAsset(offer.Buying),
-			MarketSelling:   utils.FormatAsset(offer.Selling),
+			TokenIn:         utils.FormatAsset(offer.Buying),
+			TokenOut:        utils.FormatAsset(offer.Selling),
 			OfferBuyAmount:  float64(offer.BuyAmount) / 1e7,
 			OfferSellAmount: float64(offer.BuyAmount) / 1e7 * float64(offer.Price.N) / float64(offer.Price.D),
 			OfferPrice:      float64(offer.Price.N) / float64(offer.Price.D),
@@ -70,10 +70,19 @@ func HandleManageBuyTransaction(
 			}
 			clean_tx.OrderMatches = append(clean_tx.OrderMatches, match)
 		}
-		if clean_tx.Status == utils.ORDERBOOK_TX_STATUS_MATCHED || clean_tx.Status == utils.ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED {
-			fmt.Printf("Tx hash: %v ||||| total number of matches: %v |||| status : %v\n", clean_tx.TransactionHash, numMatches, clean_tx.Status)
-			utils.PrettyPrintTransaction(clean_tx)
+		// if clean_tx.Status == utils.ORDERBOOK_TX_STATUS_MATCHED || clean_tx.Status == utils.ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED {
+		// 	fmt.Printf("Tx hash: %v ||||| total number of matches: %v |||| status : %v\n", clean_tx.TransactionHash, numMatches, clean_tx.Status)
+		// 	utils.PrettyPrintTransaction(clean_tx)
+		// }
+		token_buying_split := strings.Split(utils.FormatAsset(offer.Buying), ":")
+		token_selling_split := strings.Split(utils.FormatAsset(offer.Buying), ":")
+		if len(token_buying_split) > 1 {
+			go AddTokenData(token_buying_split[1])
 		}
+		if len(token_selling_split) > 1 {
+			go AddTokenData(token_selling_split[1])
+		}
+
 	}
 }
 
@@ -107,8 +116,8 @@ func HandleManageSellTransaction(
 			OperationIndex:  opIndex,
 			DexName:         utils.DEX_NAME_STELLAR_DEX,
 			SourceAccount:   op.SourceAccount.Address(),
-			MarketBuying:    utils.FormatAsset(offer.Buying),
-			MarketSelling:   utils.FormatAsset(offer.Selling),
+			TokenIn:         utils.FormatAsset(offer.Buying),
+			TokenOut:        utils.FormatAsset(offer.Selling),
 			OfferSellAmount: float64(offer.Amount) / 1e7,
 			OfferBuyAmount:  (float64(offer.Amount) / 1e7) * (float64(offer.Price.N) / float64(offer.Price.D)),
 			OfferPrice:      float64(offer.Price.N) / float64(offer.Price.D),
@@ -139,9 +148,17 @@ func HandleManageSellTransaction(
 		}
 
 		// Print or persist
-		if clean_tx.Status == utils.ORDERBOOK_TX_STATUS_MATCHED || clean_tx.Status == utils.ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED {
-			fmt.Printf("Tx hash: %v ||||| total matches: %v |||| status: %v\n", clean_tx.TransactionHash, numMatches, clean_tx.Status)
-			utils.PrettyPrintTransaction(clean_tx)
+		// if clean_tx.Status == utils.ORDERBOOK_TX_STATUS_MATCHED || clean_tx.Status == utils.ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED {
+		// 	fmt.Printf("Tx hash: %v ||||| total matches: %v |||| status: %v\n", clean_tx.TransactionHash, numMatches, clean_tx.Status)
+		// 	utils.PrettyPrintTransaction(clean_tx)
+		// }
+		token_buying_split := strings.Split(utils.FormatAsset(offer.Buying), ":")
+		token_selling_split := strings.Split(utils.FormatAsset(offer.Buying), ":")
+		if len(token_buying_split) > 1 {
+			go AddTokenData(token_buying_split[1])
+		}
+		if len(token_selling_split) > 1 {
+			go AddTokenData(token_selling_split[1])
 		}
 	}
 }
