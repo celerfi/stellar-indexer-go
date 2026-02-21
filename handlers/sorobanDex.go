@@ -37,7 +37,7 @@ func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime 
 			tx_instance.BlockTime = blocktime
 			tx_instance.LedgerSequence = seq
 			tx_instance.TransactionHash = tx.Result.TransactionHash.HexString()
-			tx_instance.DexName = aquarius_dex_name
+			tx_instance.DexName = utils.DEX_NAME_AQUARIUS
 			tx_instance.SourceAccount = tx.Envelope.SourceAccount().GoString()
 			tx_instance.Dex_type = "AMM"
 			tx_instance.PoolAddress = pool_addr
