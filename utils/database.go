@@ -95,12 +95,48 @@ func InsertTransactionsToDb(transactions []models.TransactionModels) {
 	}
 }
 
-func TokenExistsInDb(token_hash string) bool {
-	return false
+func TokenExistsInDb(tokenHash string) bool {
+	var exists bool
+	err := db.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM token_info WHERE contract_address = $1)", tokenHash).Scan(&exists)
+	if err != nil {
+		fmt.Printf("Error checking if token exists: %v\n", err)
+		return false
+	}
+	return exists
 }
 
-func SaveTokenToDB(token models.Token) {
+func SaveTokenToDB(token models.TokenInfo) {
+	supplyBreakdownJSON, err := json.Marshal(token.SupplyBreakdown)
+	if err != nil {
+		fmt.Printf("Error marshaling SupplyBreakdown to JSON: %v\n", err)
+		return
+	}
 
+	_, err = db.Exec(
+		context.Background(),
+		`INSERT INTO token_info (
+			contract_address, symbol, name, decimals, total_supply,
+			admin_address, is_auth_revocable, is_mintable, is_sac,
+			num_accounts, supply_breakdown
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (contract_address) DO UPDATE SET
+			symbol = EXCLUDED.symbol,
+			name = EXCLUDED.name,
+			decimals = EXCLUDED.decimals,
+			total_supply = EXCLUDED.total_supply,
+			admin_address = EXCLUDED.admin_address,
+			is_auth_revocable = EXCLUDED.is_auth_revocable,
+			is_mintable = EXCLUDED.is_mintable,
+			is_sac = EXCLUDED.is_sac,
+			num_accounts = EXCLUDED.num_accounts,
+			supply_breakdown = EXCLUDED.supply_breakdown`,
+		token.ContractAddress, token.Symbol, token.Name, token.Decimals, token.TotalSupply,
+		token.AdminAddress, token.IsAuthRevocable, token.IsMintable, token.IsSAC,
+		token.NumAccounts, supplyBreakdownJSON,
+	)
+	if err != nil {
+		fmt.Printf("Error saving token to database: %v\n", err)
+	}
 }
 
 func getLastSuccessFullLedgerInDb() (uint32, error) {
