@@ -150,3 +150,32 @@ func getLastSuccessFullLedgerInDb() (uint32, error) {
 	}
 	return lastLedger, nil
 }
+
+func PoolExistsInDb(poolAddress string) bool {
+	var exists bool
+	err := db.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM liquidity_pools WHERE pool_address = $1)", poolAddress).Scan(&exists)
+	if err != nil {
+		fmt.Printf("Error checking if pool exists: %v\n", err)
+		return false
+	}
+	return exists
+}
+
+func SavePoolToDB(pool models.LiquidityPool) {
+	_, err := db.Exec(
+		context.Background(),
+		`INSERT INTO liquidity_pools (
+			pool_address, token_a, token_b, fee_bps, type, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (pool_address) DO UPDATE SET
+			token_a = EXCLUDED.token_a,
+			token_b = EXCLUDED.token_b,
+			fee_bps = EXCLUDED.fee_bps,
+			type = EXCLUDED.type,
+			created_at = EXCLUDED.created_at`,
+		pool.PoolAddress, pool.TokenA, pool.TokenB, pool.FeeBps, pool.Type, pool.CreatedAt,
+	)
+	if err != nil {
+		fmt.Printf("Error saving pool to database: %v\n", err)
+	}
+}
