@@ -140,5 +140,13 @@ func SaveTokenToDB(token models.TokenInfo) {
 }
 
 func getLastSuccessFullLedgerInDb() (uint32, error) {
-	return 0, nil
+	var lastLedger uint32
+	row := db.QueryRow(context.Background(), "SELECT MAX(ledger_sequence) FROM transaction_models")
+	err := row.Scan(&lastLedger)
+	if err == pgx.ErrNoRows || lastLedger == 0 {
+		return 0, nil
+	} else if err != nil {
+		return 0, fmt.Errorf("error getting last successful ledger: %w", err)
+	}
+	return lastLedger, nil
 }
