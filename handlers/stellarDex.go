@@ -82,7 +82,7 @@ func HandleManageBuyTransaction(
 		if len(token_selling_split) > 1 {
 			go AddTokenData(token_selling_split[1])
 		}
-
+		utils.InsertTransactionsToDb([]models.TransactionModels{clean_tx})
 	}
 }
 
@@ -160,5 +160,6 @@ func HandleManageSellTransaction(
 		if len(token_selling_split) > 1 {
 			go AddTokenData(token_selling_split[1])
 		}
+		utils.InsertTransactionsToDb([]models.TransactionModels{clean_tx})
 	}
 }
