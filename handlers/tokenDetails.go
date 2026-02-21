@@ -19,8 +19,5 @@ func AddTokenData(token_hash string) {
 	}
 	// fetch the token from the blockchain
 
-	// go utils.SaveTokenToDB(token)
-
-	fmt.Println(token)
-	fmt.Println("######################")
+	go utils.SaveTokenToDB(*token)
 }
