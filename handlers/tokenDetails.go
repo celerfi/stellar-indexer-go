@@ -2,22 +2,27 @@ package tx_handlers
 
 import (
 	"fmt"
+	"strings"
 
-	// "github.com/celerfi/stellar-indexer-go/models"
 	"github.com/celerfi/stellar-indexer-go/utils"
 )
 
-// TODO
-func AddTokenData(token_hash string) {
-	if utils.TokenExistsInDb(token_hash) {
+func AddTokenData(tokenHash string) {
+	// only processing soroban 'C' addresses for now. learnt yhat classic 'G' addresses are not contracts and causes errors
+	if !strings.HasPrefix(tokenHash, "C") {
+		fmt.Printf("Skipping classic asset: %s\n", tokenHash)
 		return
 	}
-	token, err := utils.GetSorobanTokenInfo(token_hash)
-	if err != nil {
-		fmt.Println("failed to get decimals: ", token_hash)
-		panic(err)
+
+	if utils.TokenExistsInDb(tokenHash) {
+		return
 	}
-	// fetch the token from the blockchain
+
+	token, err := utils.GetSorobanTokenInfo(tokenHash)
+	if err != nil {
+		fmt.Printf("Failed to get Soroban token info for %s: %v\n", tokenHash, err)
+		return
+	}
 
 	go utils.SaveTokenToDB(*token)
 }
