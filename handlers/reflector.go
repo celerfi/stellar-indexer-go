@@ -37,6 +37,7 @@ func InitReflectorAssets() {
 		}
 		contractAssets[contractAddr] = assets
 	}
+	log.Println("Successfully fetched reflector assets")
 }
 
 func IsReflectorInvocation(op xdr.Operation) (string, bool) {
