@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -15,10 +16,12 @@ func FormatAsset(a xdr.Asset) string {
 		return "XLM"
 	case xdr.AssetTypeAssetTypeCreditAlphanum4:
 		credit := a.MustAlphaNum4()
-		return fmt.Sprintf("%s:%s", credit.AssetCode, credit.Issuer.Address())
+		assetCode := string(bytes.TrimRight(credit.AssetCode[:], "\x00"))
+		return fmt.Sprintf("%s:%s", assetCode, credit.Issuer.Address())
 	case xdr.AssetTypeAssetTypeCreditAlphanum12:
 		credit := a.MustAlphaNum12()
-		return fmt.Sprintf("%s:%s", credit.AssetCode, credit.Issuer.Address())
+		assetCode := string(bytes.TrimRight(credit.AssetCode[:], "\x00"))
+		return fmt.Sprintf("%s:%s", assetCode, credit.Issuer.Address())
 	default:
 		return "Unknown"
 	}

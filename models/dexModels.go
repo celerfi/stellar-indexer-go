@@ -51,3 +51,12 @@ type Token struct {
 
 type Transfers struct {
 }
+
+type LiquidityPool struct {
+	PoolAddress string    
+	TokenA      string    
+	TokenB      string    
+	FeeBps      int32     
+	Type        string    
+	CreatedAt   time.Time 
+}

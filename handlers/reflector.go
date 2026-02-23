@@ -36,7 +36,6 @@ func InitReflectorAssets() {
 			continue
 		}
 		contractAssets[contractAddr] = assets
-		log.Printf("reflector contract %s assets: %v", contractAddr, assets)
 	}
 }
 

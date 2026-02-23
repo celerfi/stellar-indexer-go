@@ -1,31 +1,31 @@
 package tx_handlers
 
 import (
-	"log"
+	"fmt"
 	"strings"
 
+	"github.com/celerfi/stellar-indexer-go/models"
 	"github.com/celerfi/stellar-indexer-go/utils"
 )
 
-func AddTokenData(token_hash string) {
-	if utils.TokenExistsInDb(token_hash) {
+func AddTokenData(tokenHash string) {
+	if utils.TokenExistsInDb(tokenHash) {
 		return
 	}
 
-	if strings.HasPrefix(token_hash, "G") {
-		token, err := utils.GetClassicTokenInfo(token_hash)
-		if err != nil {
-			log.Printf("failed to get classic token info for %s: %v", token_hash, err)
-			return
-		}
-		log.Println(token)
-		return
+	var token *models.TokenInfo
+	var err error
+
+	if strings.HasPrefix(tokenHash, "C") {
+		token, err = utils.GetSorobanTokenInfo(tokenHash)
+	} else {
+		token, err = utils.GetClassicTokenInfo(tokenHash)
 	}
 
-	token, err := utils.GetSorobanTokenInfo(token_hash)
 	if err != nil {
-		log.Printf("failed to get soroban token info for %s: %v", token_hash, err)
+		fmt.Printf("failed to get token info for %s: %v\n", tokenHash, err)
 		return
 	}
-	log.Println(token)
+
+	go utils.SaveTokenToDB(*token)
 }

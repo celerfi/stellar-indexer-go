@@ -19,7 +19,9 @@ import (
 
 func main() {
 	ctx := context.Background()
-	fmt.Println("Starting up the Stellar Indexer ########")
+	fmt.Println("CelarFi Indexer: Starting up...")
+	fmt.Println("Chain: Stellar")
+
 	startSeq, err := utils.GetStartLedger()
 	if err != nil {
 		panic(err)
@@ -35,18 +37,19 @@ func main() {
 		log.Fatalf("Failed to prepare range: %v", err)
 	}
 
-	fmt.Println("Iterating over Testnet ledgers #########")
+	fmt.Println("CelarFi Indexer: Started.")
+	fmt.Println("Iterating over Stellar ledgers #########")
 	seq := startSeq
 	for {
 		ledger, err := backend.GetLedger(ctx, seq)
 		if err != nil {
 			fmt.Printf("No more ledgers or error at sequence %d: %v\n", seq, err)
-			// urgent error
+			// actually urgent error
 			break
 		}
 		tx_reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(network.PublicNetworkPassphrase, ledger)
 		if err != nil {
-			// sendout the error
+			// send out the error
 
 			startSeq++
 			continue
@@ -54,6 +57,9 @@ func main() {
 		closeTime := ledger.LedgerHeaderHistoryEntry().Header.ScpValue.CloseTime
 		blockTime := time.Unix(int64(closeTime), 0).UTC()
 		_ = blockTime
+
+		transactionCount := ledger.CountTransactions()
+		fmt.Printf("Processing ledger %d with %d transactions...\n", seq, transactionCount)
 
 		for {
 			tx, readErr := tx_reader.Read()
@@ -73,18 +79,22 @@ func main() {
 				if opResults == nil || opIndex >= len(*opResults) {
 					continue
 				}
+
+				fmt.Printf("  - Found operation type: %s\n", op.Body.Type)
 				switch op.Body.Type {
-				// case xdr.OperationTypeManageBuyOffer:
-				// 	go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
-				// case xdr.OperationTypeManageSellOffer:
-				// go tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
+				case xdr.OperationTypeManageBuyOffer:
+					fmt.Println("    -> Handling ManageBuyOffer")
+					go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
+				case xdr.OperationTypeManageSellOffer:
+					fmt.Println("    -> Handling ManageSellOffer")
+					go tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
 				case xdr.OperationTypeLiquidityPoolDeposit:
 					// fmt.Println("found liquidity pool deposit")
 				case xdr.OperationTypeLiquidityPoolWithdraw:
 					// fmt.Println("found liquidity pool withdraw")
 				case xdr.OperationTypeInvokeHostFunction:
+					fmt.Println("    -> Handling InvokeHostFunction")
 					go tx_handlers.ProcessSorobanContracts(tx, seq, tx_time)
-
 				}
 
 			}
