@@ -25,6 +25,7 @@ func main() {
 		panic(err)
 	}
 
+	tx_handlers.InitReflectorAssets()
 	fmt.Println("Establishing the Indexer Connection ######## ", startSeq)
 	backend := ledgerbackend.NewRPCLedgerBackend(ledgerbackend.RPCLedgerBackendOptions{
 		RPCServerURL: config.RPC_URL,
@@ -46,12 +47,13 @@ func main() {
 		tx_reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(network.PublicNetworkPassphrase, ledger)
 		if err != nil {
 			// sendout the error
-			
+
 			startSeq++
 			continue
 		}
 		closeTime := ledger.LedgerHeaderHistoryEntry().Header.ScpValue.CloseTime
 		blockTime := time.Unix(int64(closeTime), 0).UTC()
+		_ = blockTime
 
 		for {
 			tx, readErr := tx_reader.Read()
@@ -72,10 +74,10 @@ func main() {
 					continue
 				}
 				switch op.Body.Type {
-				case xdr.OperationTypeManageBuyOffer:
-					go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
-				case xdr.OperationTypeManageSellOffer:
-					go tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
+				// case xdr.OperationTypeManageBuyOffer:
+				// 	go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
+				// case xdr.OperationTypeManageSellOffer:
+				// go tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
 				case xdr.OperationTypeLiquidityPoolDeposit:
 					// fmt.Println("found liquidity pool deposit")
 				case xdr.OperationTypeLiquidityPoolWithdraw:

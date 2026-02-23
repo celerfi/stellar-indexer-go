@@ -32,6 +32,11 @@ func InsertTransactionsToDb(transactions []models.TransactionModels) {
 
 	//TODO: do something here
 }
+func InsertPriceTicks(ticks []models.PriceTick) {
+	// _ = db
+
+	//TODO: do something here
+}
 
 func TokenExistsInDb(token_hash string) bool {
 	return false
@@ -41,6 +46,6 @@ func SaveTokenToDB(token models.Token) {
 
 }
 
-func getLastSuccessFullLedgerInDb() (uint32, error){
+func getLastSuccessFullLedgerInDb() (uint32, error) {
 	return 0, nil
 }

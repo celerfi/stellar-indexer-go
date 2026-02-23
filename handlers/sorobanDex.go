@@ -10,22 +10,34 @@ import (
 )
 
 func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime time.Time) {
+	for _, op := range tx.Envelope.Operations() {
+		if _, ok := IsReflectorInvocation(op); ok {
+			go HandleReflectorSetPrice(tx, op, seq, blocktime)
+			return
+		}
+	}
+
 	var tx_array []models.TransactionModels
+
 	events, err := tx.GetContractEvents()
 	if err != nil {
 		return
 	}
+
 	for _, event := range events {
 		body := event.Body.V0
 		if body == nil {
 			continue
 		}
+
 		scAddr := xdr.ScAddress{
 			Type:       xdr.ScAddressTypeScAddressTypeContract,
 			ContractId: event.ContractId,
 		}
+
 		event_symbol, _ := body.Topics[0].GetSym()
 		eventname := string(event_symbol)
+
 		switch eventname {
 		case "trade":
 			token_in_sym, _ := body.Topics[1].GetAddress()
@@ -33,6 +45,7 @@ func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime 
 			pool_addr, _ := scAddr.String()
 			token_in, _ := token_in_sym.String()
 			token_out, _ := token_out_sym.String()
+
 			tx_instance := models.TransactionModels{}
 			tx_instance.BlockTime = blocktime
 			tx_instance.LedgerSequence = seq
@@ -56,9 +69,6 @@ func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime 
 			go AddPoolDetails(pool_addr)
 		}
 	}
-	// for _, item := range tx_array {
-	// 	utils.PrettyPrintTransaction(item)
-	// 	fmt.Println("=======================")
-	// }
+
 	utils.InsertTransactionsToDb(tx_array)
 }
