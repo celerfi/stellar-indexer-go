@@ -61,6 +61,23 @@ func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime 
 				tx_instance.AmountSold = utils.Int128ToDecimalFloat((*vec)[0].MustI128(), 7)
 				tx_instance.AmountBought = utils.Int128ToDecimalFloat((*vec)[1].MustI128(), 7)
 				tx_instance.DexFee = utils.Int128ToDecimalFloat((*vec)[2].MustI128(), 7)
+
+				if tx_instance.AmountBought > 0 {
+					price := tx_instance.AmountSold / tx_instance.AmountBought
+					tick := models.PriceTick{
+						Timestamp:  blocktime,
+						AssetID:    token_out,
+						SourceID:   utils.DEX_NAME_AQUARIUS,
+						SourceType: "amm",
+						PriceUSD:   price,
+						VolumeUSD:  &tx_instance.AmountSold,
+						BaseVolume: &tx_instance.AmountBought,
+						QuoteVolume: &tx_instance.AmountSold,
+						LedgerSeq:  seq,
+						TxHash:     tx_instance.TransactionHash,
+					}
+					utils.InsertPriceTicks([]models.PriceTick{tick})
+				}
 			}
 
 			tx_array = append(tx_array, tx_instance)
