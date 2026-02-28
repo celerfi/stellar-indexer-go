@@ -228,3 +228,52 @@ func InsertPriceTicks(ticks []models.PriceTick) {
 		fmt.Printf("Error committing price ticks: %v\n", err)
 	}
 }
+
+func InsertBlendEvents(events []models.BlendEvent) {
+	if len(events) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertBlendEvents, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"blend_events"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "contract_id",
+				"event_type", "user_address", "asset_id", "amount",
+				"liquidator_address", "collateral_asset", "debt_asset",
+			},
+			pgx.CopyFromSlice(len(events), func(i int) ([]interface{}, error) {
+				e := events[i]
+				return []interface{}{
+					e.Timestamp, e.LedgerSequence, e.TransactionHash, e.ContractID,
+					e.EventType, e.User, e.Asset, e.Amount,
+					e.Liquidator, e.CollateralAsset, e.DebtAsset,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting blend events, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing blend events: %v\n", err)
+	}
+}
