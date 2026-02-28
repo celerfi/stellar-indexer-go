@@ -69,6 +69,23 @@ func HandleManageBuyTransaction(
 				OfferID:      uint64(claim.OfferId()),
 			}
 			clean_tx.OrderMatches = append(clean_tx.OrderMatches, match)
+
+			if match.AmountBought > 0 {
+				price := match.AmountSold / match.AmountBought
+				tick := models.PriceTick{
+					Timestamp:   blockTime,
+					AssetID:     match.AssetBought,
+					SourceID:    "sdex",
+					SourceType:  "dex",
+					PriceUSD:    price,
+					VolumeUSD:   &match.AmountSold,
+					BaseVolume:  &match.AmountBought,
+					QuoteVolume: &match.AmountSold,
+					LedgerSeq:   seq,
+					TxHash:      clean_tx.TransactionHash,
+				}
+				utils.InsertPriceTicks([]models.PriceTick{tick})
+			}
 		}
 		// if clean_tx.Status == utils.ORDERBOOK_TX_STATUS_MATCHED || clean_tx.Status == utils.ORDERBOOK_TX_STATUS_PARTIALLY_MATCHED {
 		// 	fmt.Printf("Tx hash: %v ||||| total number of matches: %v |||| status : %v\n", clean_tx.TransactionHash, numMatches, clean_tx.Status)
@@ -145,6 +162,23 @@ func HandleManageSellTransaction(
 				OfferID:      uint64(claim.OfferId()),
 			}
 			clean_tx.OrderMatches = append(clean_tx.OrderMatches, match)
+
+			if match.AmountBought > 0 {
+				price := match.AmountSold / match.AmountBought
+				tick := models.PriceTick{
+					Timestamp:   blockTime,
+					AssetID:     match.AssetBought,
+					SourceID:    "sdex",
+					SourceType:  "dex",
+					PriceUSD:    price,
+					VolumeUSD:   &match.AmountSold,
+					BaseVolume:  &match.AmountBought,
+					QuoteVolume: &match.AmountSold,
+					LedgerSeq:   seq,
+					TxHash:      clean_tx.TransactionHash,
+				}
+				utils.InsertPriceTicks([]models.PriceTick{tick})
+			}
 		}
 
 		// Print or persist
