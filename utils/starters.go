@@ -13,7 +13,14 @@ func GetStartLedger() (uint32, error) {
 	case "testing":
 		return getNodeLatestLedger()
 	case "production":
-		return getLastSuccessFullLedgerInDb()
+		lastLedger, err := getLastSuccessFullLedgerInDb()
+		if err != nil {
+			return 0, err
+		}
+		if lastLedger == 0 {
+			return getNodeLatestLedger()
+		}
+		return lastLedger, nil
 	default:
 		return 0, errors.New("set the deployment environment config: options (testing, production)")
 	}

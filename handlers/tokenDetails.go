@@ -2,25 +2,30 @@ package tx_handlers
 
 import (
 	"fmt"
+	"strings"
 
-	// "github.com/celerfi/stellar-indexer-go/models"
+	"github.com/celerfi/stellar-indexer-go/models"
 	"github.com/celerfi/stellar-indexer-go/utils"
 )
 
-// TODO
-func AddTokenData(token_hash string) {
-	if utils.TokenExistsInDb(token_hash) {
+func AddTokenData(tokenHash string) {
+	if utils.TokenExistsInDb(tokenHash) {
 		return
 	}
-	token, err := utils.GetSorobanTokenInfo(token_hash)
-	if err != nil {
-		fmt.Println("failed to get decimals: ", token_hash)
-		panic(err)
+
+	var token *models.TokenInfo
+	var err error
+
+	if strings.HasPrefix(tokenHash, "C") {
+		token, err = utils.GetSorobanTokenInfo(tokenHash)
+	} else {
+		token, err = utils.GetClassicTokenInfo(tokenHash)
 	}
-	// fetch the token from the blockchain
 
-	// go utils.SaveTokenToDB(token)
+	if err != nil {
+		fmt.Printf("failed to get token info for %s: %v\n", tokenHash, err)
+		return
+	}
 
-	fmt.Println(token)
-	fmt.Println("######################")
+	go utils.SaveTokenToDB(*token)
 }

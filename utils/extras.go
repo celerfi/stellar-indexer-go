@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celerfi/stellar-indexer-go/config"
 	"github.com/celerfi/stellar-indexer-go/models"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/strkey"
@@ -21,11 +22,10 @@ import (
 
 // DefaultConfig returns sensible defaults for mainnet
 var rpc_config = models.GetTokenConfig{
-		RPCUrl:     "https://soroban-rpc.mainnet.stellar.gateway.fm",
-		HorizonUrl: "https://horizon.stellar.org",
-		Timeout:    10 * time.Second,
-	}
-
+	RPCUrl:     config.RPC_URL,
+	HorizonUrl: "https://horizon.stellar.org",
+	Timeout:    10 * time.Second,
+}
 
 // GetTokenInfo is the main function to get all token information
 // It automatically detects SACs and fetches appropriate data
@@ -45,16 +45,19 @@ func GetSorobanTokenInfo(contractAddress string) (*models.TokenInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get symbol: %w", err)
 	}
+	fmt.Printf("Info Symbol: %s", info.Symbol)
 
 	info.Name, err = getTokenName(scAddr, rpc_config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get name: %w", err)
 	}
+	fmt.Printf("Info Name: %s", info.Name)
 
 	info.Decimals, err = getTokenDecimals(scAddr, rpc_config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get decimals: %w", err)
 	}
+	fmt.Printf("Info Decimal: %s", info.Decimals)
 
 	// Try to get admin address (may fail for some contracts)
 	info.AdminAddress, _ = getTokenAdmin(scAddr, rpc_config)
@@ -430,7 +433,111 @@ func parseFloat(val string) float64 {
 	return f
 }
 
-func GetClassicTokenInfo(string) (*models.TokenInfo, error) {
-	//
-	return nil, nil
+func GetClassicTokenInfo(issuerAddress string) (*models.TokenInfo, error) {
+	client := &horizonclient.Client{HorizonURL: rpc_config.HorizonUrl}
+
+	account, err := client.AccountDetail(horizonclient.AccountRequest{
+		AccountID: issuerAddress,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch account: %w", err)
+	}
+
+	info := &models.TokenInfo{
+		AdminAddress: issuerAddress,
+		IsSAC:        false,
+	}
+
+	info.Name = account.HomeDomain
+
+	assets, err := client.Assets(horizonclient.AssetRequest{
+		ForAssetIssuer: issuerAddress,
+	})
+	if err != nil || len(assets.Embedded.Records) == 0 {
+		return info, nil
+	}
+
+	record := assets.Embedded.Records[0]
+	info.Symbol = record.Code
+
+	info.ContractAddress = strings.Join([]string{record.Code, issuerAddress}, ":")
+
+	supply, err := getClassicAssetSupply(record.Code, issuerAddress, rpc_config)
+	if err == nil {
+		info.TotalSupply = fmt.Sprintf("%.7f", supply.Total)
+		info.SupplyBreakdown = supply
+	}
+
+	// Holder count and flags
+	assetInfo, err := getClassicAssetInfo(record.Code, issuerAddress, rpc_config)
+	if err == nil {
+		info.NumAccounts = assetInfo.NumAccounts
+		info.IsAuthRevocable = assetInfo.Flags.AuthRevocable
+		info.IsMintable = !assetInfo.Flags.AuthImmutable
+	}
+
+	return info, nil
+}
+
+func GetReflectorAssets(contractAddr string) ([]string, error) {
+	scAddr, err := createScAddressFromString(contractAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid contract address: %w", err)
+	}
+
+	result, err := callReadOnlyFunction(scAddr, "assets", xdr.ScVec{}, rpc_config)
+	if err != nil {
+		return nil, fmt.Errorf("assets() call failed: %w", err)
+	}
+
+	vec, ok := result.GetVec()
+	if !ok || vec == nil {
+		return nil, fmt.Errorf("unexpected result type from assets()")
+	}
+
+	var assets []string
+	for i, item := range *vec {
+		assetID, err := decodeReflectorAsset(item)
+		if err != nil {
+			return nil, fmt.Errorf("decode asset[%d]: %w", i, err)
+		}
+		assets = append(assets, assetID)
+	}
+
+	return assets, nil
+}
+
+func decodeReflectorAsset(val xdr.ScVal) (string, error) {
+	vec, ok := val.GetVec()
+	if !ok || vec == nil || len(*vec) < 2 {
+		return "", fmt.Errorf("expected ScVec with 2 elements")
+	}
+
+	variant, ok := (*vec)[0].GetSym()
+	if !ok {
+		return "", fmt.Errorf("expected Symbol as first element")
+	}
+
+	switch string(variant) {
+	case "Other":
+		sym, ok := (*vec)[1].GetSym()
+		if !ok {
+			return "", fmt.Errorf("expected Symbol value in Other variant")
+		}
+		return string(sym), nil
+
+	case "Stellar":
+		addr, ok := (*vec)[1].GetAddress()
+		if !ok {
+			return "", fmt.Errorf("expected Address value in Stellar variant")
+		}
+		addrStr, err := addr.String()
+		if err != nil {
+			return "", err
+		}
+		return addrStr, nil
+
+	default:
+		return "", fmt.Errorf("unknown Asset variant: %s", string(variant))
+	}
 }
