@@ -49,7 +49,7 @@ func HandleBlendEvent(tx ingest.LedgerTransaction, seq uint32, blocktime time.Ti
 				Timestamp:       blocktime,
 				LedgerSequence:  seq,
 				TransactionHash: tx.Result.TransactionHash.HexString(),
-				ContractID:      event.ContractId.HexString(),
+				ContractID:      fmt.Sprintf("%x", *event.ContractId),
 				EventType:       eventName,
 				User:            user,
 				Asset:           asset,
@@ -84,7 +84,7 @@ func HandleBlendEvent(tx ingest.LedgerTransaction, seq uint32, blocktime time.Ti
 				Timestamp:       blocktime,
 				LedgerSequence:  seq,
 				TransactionHash: tx.Result.TransactionHash.HexString(),
-				ContractID:      event.ContractId.HexString(),
+				ContractID:      fmt.Sprintf("%x", *event.ContractId),
 				EventType:       eventName,
 				User:            borrower,
 				Liquidator:      liquidator,
@@ -96,8 +96,7 @@ func HandleBlendEvent(tx ingest.LedgerTransaction, seq uint32, blocktime time.Ti
 	}
 
 	if len(blendEvents) > 0 {
-		fmt.Printf("Parsed %d Blend events
-", len(blendEvents))
+		fmt.Printf("Parsed %d Blend events\n", len(blendEvents))
 		utils.InsertBlendEvents(blendEvents)
 	}
 }

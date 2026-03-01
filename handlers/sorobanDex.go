@@ -17,6 +17,8 @@ func ProcessSorobanContracts(tx ingest.LedgerTransaction, seq uint32, blocktime 
 		}
 	}
 
+	go HandleBlendEvent(tx, seq, blocktime)
+
 	var tx_array []models.TransactionModels
 
 	events, err := tx.GetContractEvents()
