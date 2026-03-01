@@ -2,7 +2,8 @@ package utils
 
 const (
 	DEX_NAME_STELLAR_DEX = "STELLAR-DEX"
-	DEX_NAME_AQUARIUS = "aquarius"
+	DEX_NAME_AQUARIUS    = "aquarius"
+	DEX_NAME_SOROSWAP    = "soroswap"
 
 	ORDERBOOK_TX_STATUS_MATCHED = "matched"
 	ORDERBOOK_TX_STATUS_POSTED = "posted"
