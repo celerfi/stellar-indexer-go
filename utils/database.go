@@ -277,3 +277,52 @@ func InsertBlendEvents(events []models.BlendEvent) {
 		fmt.Printf("Error committing blend events: %v\n", err)
 	}
 }
+
+func InsertLiquidityActions(actions []models.LiquidityAction) {
+	if len(actions) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertLiquidityActions, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"liquidity_actions"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "pool_address",
+				"action_type", "user_address", "amount_a", "amount_b",
+				"token_a", "token_b",
+			},
+			pgx.CopyFromSlice(len(actions), func(i int) ([]interface{}, error) {
+				a := actions[i]
+				return []interface{}{
+					a.Timestamp, a.LedgerSequence, a.TransactionHash, a.PoolAddress,
+					a.ActionType, a.User, a.AmountA, a.AmountB,
+					a.TokenA, a.TokenB,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting liquidity actions, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing liquidity actions: %v\n", err)
+	}
+}
