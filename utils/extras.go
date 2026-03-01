@@ -541,3 +541,32 @@ func decodeReflectorAsset(val xdr.ScVal) (string, error) {
 		return "", fmt.Errorf("unknown Asset variant: %s", string(variant))
 	}
 }
+
+func GetSoroswapPairTokens(contractAddr string) (string, string, error) {
+	scAddr, err := createScAddressFromString(contractAddr)
+	if err != nil {
+		return "", "", err
+	}
+
+	t0Val, err := callReadOnlyFunction(scAddr, "token0", xdr.ScVec{}, rpc_config)
+	if err != nil {
+		return "", "", err
+	}
+	t0, ok := t0Val.GetAddress()
+	if !ok {
+		return "", "", fmt.Errorf("token0 not an address")
+	}
+	token0, _ := t0.String()
+
+	t1Val, err := callReadOnlyFunction(scAddr, "token1", xdr.ScVec{}, rpc_config)
+	if err != nil {
+		return "", "", err
+	}
+	t1, ok := t1Val.GetAddress()
+	if !ok {
+		return "", "", fmt.Errorf("token1 not an address")
+	}
+	token1, _ := t1.String()
+
+	return token0, token1, nil
+}

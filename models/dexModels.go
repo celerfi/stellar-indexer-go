@@ -60,3 +60,16 @@ type LiquidityPool struct {
 	Type        string    
 	CreatedAt   time.Time 
 }
+
+type LiquidityAction struct {
+	Timestamp       time.Time
+	LedgerSequence  uint32
+	TransactionHash string
+	PoolAddress     string
+	ActionType      string // deposit, withdraw
+	User            string
+	AmountA         float64
+	AmountB         float64
+	TokenA          string
+	TokenB          string
+}
