@@ -570,3 +570,7 @@ func GetSoroswapPairTokens(contractAddr string) (string, string, error) {
 
 	return token0, token1, nil
 }
+
+func Ptr[T any](v T) *T {
+	return &v
+}

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
@@ -621,7 +622,7 @@ func (ec *executionContext) _OHLCVData_bucket(ctx context.Context, field graphql
 			return obj.Bucket, nil
 		},
 		nil,
-		ec.marshalNDateTime2string,
+		ec.marshalNDateTime2timeᚐTime,
 		true,
 		true,
 	)
@@ -1719,7 +1720,7 @@ func (ec *executionContext) _Transaction_blockTime(ctx context.Context, field gr
 			return obj.BlockTime, nil
 		},
 		nil,
-		ec.marshalNDateTime2string,
+		ec.marshalNDateTime2timeᚐTime,
 		true,
 		true,
 	)
@@ -4138,14 +4139,14 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNDateTime2string(ctx context.Context, v any) (string, error) {
-	res, err := graphql.UnmarshalString(v)
+func (ec *executionContext) unmarshalNDateTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
+	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDateTime2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+func (ec *executionContext) marshalNDateTime2timeᚐTime(ctx context.Context, sel ast.SelectionSet, v time.Time) graphql.Marshaler {
 	_ = sel
-	res := graphql.MarshalString(v)
+	res := graphql.MarshalTime(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")

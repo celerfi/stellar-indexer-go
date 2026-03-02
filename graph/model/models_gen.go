@@ -2,13 +2,17 @@
 
 package model
 
+import (
+	"time"
+)
+
 type OHLCVData struct {
-	Bucket    string   `json:"bucket"`
-	Open      *float64 `json:"open,omitempty"`
-	High      *float64 `json:"high,omitempty"`
-	Low       *float64 `json:"low,omitempty"`
-	Close     *float64 `json:"close,omitempty"`
-	VolumeUsd *float64 `json:"volumeUsd,omitempty"`
+	Bucket    time.Time `json:"bucket"`
+	Open      *float64  `json:"open,omitempty"`
+	High      *float64  `json:"high,omitempty"`
+	Low       *float64  `json:"low,omitempty"`
+	Close     *float64  `json:"close,omitempty"`
+	VolumeUsd *float64  `json:"volumeUsd,omitempty"`
 }
 
 type Pool struct {
@@ -44,13 +48,13 @@ type Token struct {
 }
 
 type Transaction struct {
-	BlockTime       string   `json:"blockTime"`
-	TransactionHash string   `json:"transactionHash"`
-	LedgerSequence  int32    `json:"ledgerSequence"`
-	DexName         *string  `json:"dexName,omitempty"`
-	TokenIn         *string  `json:"tokenIn,omitempty"`
-	TokenOut        *string  `json:"tokenOut,omitempty"`
-	AmountBought    *float64 `json:"amountBought,omitempty"`
-	AmountSold      *float64 `json:"amountSold,omitempty"`
-	Status          *string  `json:"status,omitempty"`
+	BlockTime       time.Time `json:"blockTime"`
+	TransactionHash string    `json:"transactionHash"`
+	LedgerSequence  int32     `json:"ledgerSequence"`
+	DexName         *string   `json:"dexName,omitempty"`
+	TokenIn         *string   `json:"tokenIn,omitempty"`
+	TokenOut        *string   `json:"tokenOut,omitempty"`
+	AmountBought    *float64  `json:"amountBought,omitempty"`
+	AmountSold      *float64  `json:"amountSold,omitempty"`
+	Status          *string   `json:"status,omitempty"`
 }

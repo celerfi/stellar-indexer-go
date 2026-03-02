@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/celerfi/stellar-indexer-go/config"
 	"github.com/celerfi/stellar-indexer-go/models"

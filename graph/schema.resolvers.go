@@ -6,7 +6,7 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/celerfi/stellar-indexer-go/graph/model"
 	"github.com/celerfi/stellar-indexer-go/utils"
@@ -51,7 +51,7 @@ func (r *stellarResolver) Transactions(ctx context.Context, obj *model.Stellar, 
 	}
 	var results []*model.Transaction
 	for _, tx := range txs {
-		txCopy := tx // avoid closure issues
+		txCopy := tx
 		results = append(results, &model.Transaction{
 			BlockTime:       txCopy.BlockTime,
 			TransactionHash: txCopy.TransactionHash,
