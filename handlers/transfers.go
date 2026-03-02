@@ -29,23 +29,23 @@ func HandleTransferOperation(
 	case xdr.OperationTypePayment:
 		p := op.Body.MustPaymentOp()
 		from = sourceAddr
-		to = p.Destination.Address()
+		to = (&p.Destination).Address()
 		asset = utils.FormatAsset(p.Asset)
 		amount = float64(p.Amount) / 1e7
 
 	case xdr.OperationTypePathPaymentStrictReceive:
 		p := op.Body.MustPathPaymentStrictReceiveOp()
 		from = sourceAddr
-		to = p.Destination.Address()
+		to = (&p.Destination).Address()
 		asset = utils.FormatAsset(p.DestAsset)
 		amount = float64(p.DestAmount) / 1e7
 
 	case xdr.OperationTypePathPaymentStrictSend:
 		p := op.Body.MustPathPaymentStrictSendOp()
 		from = sourceAddr
-		to = p.Destination.Address()
+		to = (&p.Destination).Address()
 		asset = utils.FormatAsset(p.DestAsset)
-		amount = float64(p.DestinationAmount) / 1e7
+		amount = float64(p.DestMin) / 1e7
 
 	default:
 		return
