@@ -45,7 +45,7 @@ func HandleTransferOperation(
 		from = sourceAddr
 		to = p.Destination.Address()
 		asset = utils.FormatAsset(p.DestAsset)
-		amount = float64(p.DestAmount) / 1e7
+		amount = float64(p.DestinationAmount) / 1e7
 
 	default:
 		return
