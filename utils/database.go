@@ -326,3 +326,50 @@ func InsertLiquidityActions(actions []models.LiquidityAction) {
 		fmt.Printf("Error committing liquidity actions: %v\n", err)
 	}
 }
+
+func InsertTransfers(transfers []models.Transfer) {
+	if len(transfers) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertTransfers, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"transfers"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "operation_index",
+				"from_address", "to_address", "asset_id", "amount",
+			},
+			pgx.CopyFromSlice(len(transfers), func(i int) ([]interface{}, error) {
+				t := transfers[i]
+				return []interface{}{
+					t.Timestamp, t.LedgerSequence, t.TransactionHash, t.OperationIndex,
+					t.From, t.To, t.Asset, t.Amount,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting transfers, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing transfers: %v\n", err)
+	}
+}

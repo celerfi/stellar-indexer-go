@@ -49,7 +49,15 @@ type Token struct {
 	Token_toml      map[string]any
 }
 
-type Transfers struct {
+type Transfer struct {
+	Timestamp       time.Time
+	LedgerSequence  uint32
+	TransactionHash string
+	OperationIndex  int
+	From            string
+	To              string
+	Asset           string
+	Amount          float64
 }
 
 type LiquidityPool struct {
