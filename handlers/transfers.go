@@ -20,30 +20,30 @@ func HandleTransferOperation(
 	var from, to, asset string
 	var amount float64
 
-	sourceAddr := op.SourceAccount.Address()
-	if sourceAddr == "" {
-		sourceAddr = tx.Envelope.SourceAccount().Address()
+	sourceAddr := op.SourceAccount.ToAccountId().Address()
+	if sourceAddr == "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF" {
+		sourceAddr = tx.Envelope.SourceAccount().ToAccountId().Address()
 	}
 
 	switch op.Body.Type {
 	case xdr.OperationTypePayment:
 		p := op.Body.MustPaymentOp()
 		from = sourceAddr
-		to = (&p.Destination).Address()
+		to = p.Destination.ToAccountId().Address()
 		asset = utils.FormatAsset(p.Asset)
 		amount = float64(p.Amount) / 1e7
 
 	case xdr.OperationTypePathPaymentStrictReceive:
 		p := op.Body.MustPathPaymentStrictReceiveOp()
 		from = sourceAddr
-		to = (&p.Destination).Address()
+		to = p.Destination.ToAccountId().Address()
 		asset = utils.FormatAsset(p.DestAsset)
 		amount = float64(p.DestAmount) / 1e7
 
 	case xdr.OperationTypePathPaymentStrictSend:
 		p := op.Body.MustPathPaymentStrictSendOp()
 		from = sourceAddr
-		to = (&p.Destination).Address()
+		to = p.Destination.ToAccountId().Address()
 		asset = utils.FormatAsset(p.DestAsset)
 		amount = float64(p.DestMin) / 1e7
 
