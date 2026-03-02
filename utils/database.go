@@ -378,3 +378,184 @@ func RefreshAnalytics() error {
 	_, err := db.Exec(context.Background(), "SELECT refresh_analytics_views()")
 	return err
 }
+
+func GetTransactionByHash(hash string) (*models.TransactionModels, error) {
+	var tx models.TransactionModels
+	var orderMatchesJSON []byte
+	err := db.QueryRow(context.Background(),
+		"SELECT block_time, ledger_sequence, transaction_hash, operation_index, dex_name, token_in, token_out, amount_bought, amount_sold, status, order_matches FROM transaction_models WHERE transaction_hash = $1",
+		hash).Scan(&tx.BlockTime, &tx.LedgerSequence, &tx.TransactionHash, &tx.OperationIndex, &tx.DexName, &tx.TokenIn, &tx.TokenOut, &tx.AmountBought, &tx.AmountSold, &tx.Status, &orderMatchesJSON)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(orderMatchesJSON, &tx.OrderMatches)
+	return &tx, nil
+}
+
+func GetTransactions(limit, offset int) ([]models.TransactionModels, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT block_time, ledger_sequence, transaction_hash, operation_index, dex_name, token_in, token_out, amount_bought, amount_sold, status FROM transaction_models ORDER BY block_time DESC LIMIT $1 OFFSET $2",
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txs []models.TransactionModels
+	for rows.Next() {
+		var tx models.TransactionModels
+		if err := rows.Scan(&tx.BlockTime, &tx.LedgerSequence, &tx.TransactionHash, &tx.OperationIndex, &tx.DexName, &tx.TokenIn, &tx.TokenOut, &tx.AmountBought, &tx.AmountSold, &tx.Status); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
+func GetTokenByAddress(address string) (*models.TokenInfo, error) {
+	var t models.TokenInfo
+	var supplyBreakdownJSON []byte
+	err := db.QueryRow(context.Background(),
+		"SELECT contract_address, symbol, name, decimals, total_supply, is_sac, supply_breakdown FROM token_info WHERE contract_address = $1",
+		address).Scan(&t.ContractAddress, &t.Symbol, &t.Name, &t.Decimals, &t.TotalSupply, &t.IsSAC, &supplyBreakdownJSON)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(supplyBreakdownJSON, &t.SupplyBreakdown)
+	return &t, nil
+}
+
+func GetTokens(limit, offset int) ([]models.TokenInfo, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT contract_address, symbol, name, decimals, total_supply, is_sac FROM token_info LIMIT $1 OFFSET $2",
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tokens []models.TokenInfo
+	for rows.Next() {
+		var t models.TokenInfo
+		if err := rows.Scan(&t.ContractAddress, &t.Symbol, &t.Name, &t.Decimals, &t.TotalSupply, &t.IsSAC); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, nil
+}
+
+func GetPoolByAddress(address string) (map[string]interface{}, error) {
+	var p struct {
+		PoolAddress string
+		TokenA      string
+		TokenB      string
+		FeeBps      int32
+		Type        string
+		TvlUsd      float64
+		Volume24h   float64
+	}
+	err := db.QueryRow(context.Background(), `
+		SELECT p.pool_address, p.token_a, p.token_b, p.fee_bps, p.type, 
+		       COALESCE(t.tvl_usd, 0) as tvl_usd, 
+		       COALESCE(v.volume_token_in, 0) as volume_24h
+		FROM liquidity_pools p
+		LEFT JOIN pool_tvl t ON p.pool_address = t.pool_address
+		LEFT JOIN pool_volume_24h v ON p.pool_address = v.pool_address
+		WHERE p.pool_address = $1`,
+		address).Scan(&p.PoolAddress, &p.TokenA, &p.TokenB, &p.FeeBps, &p.Type, &p.TvlUsd, &p.Volume24h)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"poolAddress": p.PoolAddress,
+		"tokenA":      p.TokenA,
+		"tokenB":      p.TokenB,
+		"feeBps":      p.FeeBps,
+		"type":        p.Type,
+		"tvlUsd":      p.TvlUsd,
+		"volume24h":   p.Volume24h,
+	}, nil
+}
+
+func GetPools(limit, offset int) ([]map[string]interface{}, error) {
+	rows, err := db.Query(context.Background(), `
+		SELECT p.pool_address, p.token_a, p.token_b, p.fee_bps, p.type, 
+		       COALESCE(t.tvl_usd, 0) as tvl_usd, 
+		       COALESCE(v.volume_token_in, 0) as volume_24h
+		FROM liquidity_pools p
+		LEFT JOIN pool_tvl t ON p.pool_address = t.pool_address
+		LEFT JOIN pool_volume_24h v ON p.pool_address = v.pool_address
+		LIMIT $1 OFFSET $2`,
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pools []map[string]interface{}
+	for rows.Next() {
+		var p struct {
+			PoolAddress string
+			TokenA      string
+			TokenB      string
+			FeeBps      int32
+			Type        string
+			TvlUsd      float64
+			Volume24h   float64
+		}
+		if err := rows.Scan(&p.PoolAddress, &p.TokenA, &p.TokenB, &p.FeeBps, &p.Type, &p.TvlUsd, &p.Volume24h); err != nil {
+			return nil, err
+		}
+		pools = append(pools, map[string]interface{}{
+			"poolAddress": p.PoolAddress,
+			"tokenA":      p.TokenA,
+			"tokenB":      p.TokenB,
+			"feeBps":      p.FeeBps,
+			"type":        p.Type,
+			"tvlUsd":      p.TvlUsd,
+			"volume24h":   p.Volume24h,
+		})
+	}
+	return pools, nil
+}
+
+func GetTokenOHLCV(address, interval string) ([]map[string]interface{}, error) {
+	var table string
+	switch interval {
+	case "1m":
+		table = "ohlcv_1min"
+	case "1h":
+		table = "ohlcv_1hour"
+	case "1d":
+		table = "ohlcv_1day"
+	default:
+		return nil, fmt.Errorf("invalid interval")
+	}
+
+	rows, err := db.Query(context.Background(),
+		fmt.Sprintf("SELECT bucket, open, high, low, close, volume_usd FROM %s WHERE asset_id = $1 ORDER BY bucket DESC LIMIT 100", table),
+		address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var bucket time.Time
+		var open, high, low, close, volume float64
+		if err := rows.Scan(&bucket, &open, &high, &low, &close, &volume); err != nil {
+			return nil, err
+		}
+		results = append(results, map[string]interface{}{
+			"bucket":    bucket,
+			"open":      open,
+			"high":      high,
+			"low":       low,
+			"close":     close,
+			"volumeUsd": volume,
+		})
+	}
+	return results, nil
+}
