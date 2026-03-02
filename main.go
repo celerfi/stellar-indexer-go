@@ -28,6 +28,7 @@ func main() {
 	}
 
 	tx_handlers.InitReflectorAssets()
+	tx_handlers.StartAnalyticsWorker()
 	fmt.Println("Establishing the Indexer Connection ######## ", startSeq)
 	backend := ledgerbackend.NewRPCLedgerBackend(ledgerbackend.RPCLedgerBackendOptions{
 		RPCServerURL: config.RPC_URL,

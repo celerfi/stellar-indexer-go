@@ -373,3 +373,8 @@ func InsertTransfers(transfers []models.Transfer) {
 		fmt.Printf("Error committing transfers: %v\n", err)
 	}
 }
+
+func RefreshAnalytics() error {
+	_, err := db.Exec(context.Background(), "SELECT refresh_analytics_views()")
+	return err
+}
