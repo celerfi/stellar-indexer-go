@@ -82,6 +82,9 @@ func main() {
 
 				fmt.Printf("  - Found operation type: %s\n", op.Body.Type)
 				switch op.Body.Type {
+				case xdr.OperationTypePayment, xdr.OperationTypePathPaymentStrictReceive, xdr.OperationTypePathPaymentStrictSend:
+					fmt.Printf("    -> Handling %s\n", op.Body.Type)
+					go tx_handlers.HandleTransferOperation(tx, op, seq, opIndex, blockTime)
 				case xdr.OperationTypeManageBuyOffer:
 					fmt.Println("    -> Handling ManageBuyOffer")
 					go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
