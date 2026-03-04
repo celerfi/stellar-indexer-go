@@ -28,7 +28,9 @@ func main() {
 	}
 
 	tx_handlers.InitReflectorAssets()
+	utils.RefreshAnalytics()
 	tx_handlers.StartAnalyticsWorker()
+	StartGraphQLServer()
 	fmt.Println("Establishing the Indexer Connection ######## ", startSeq)
 	backend := ledgerbackend.NewRPCLedgerBackend(ledgerbackend.RPCLedgerBackendOptions{
 		RPCServerURL: config.RPC_URL,
@@ -85,20 +87,20 @@ func main() {
 				switch op.Body.Type {
 				case xdr.OperationTypePayment, xdr.OperationTypePathPaymentStrictReceive, xdr.OperationTypePathPaymentStrictSend:
 					fmt.Printf("    -> Handling %s\n", op.Body.Type)
-					go tx_handlers.HandleTransferOperation(tx, op, seq, opIndex, blockTime)
+					tx_handlers.HandleTransferOperation(tx, op, seq, opIndex, blockTime)
 				case xdr.OperationTypeManageBuyOffer:
 					fmt.Println("    -> Handling ManageBuyOffer")
-					go tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
+					tx_handlers.HandleManageBuyTransaction(tx, op, seq, opIndex, opResults, blockTime)
 				case xdr.OperationTypeManageSellOffer:
 					fmt.Println("    -> Handling ManageSellOffer")
-					go tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
+					tx_handlers.HandleManageSellTransaction(tx, op, seq, opIndex, opResults, blockTime)
 				case xdr.OperationTypeLiquidityPoolDeposit:
 					// fmt.Println("found liquidity pool deposit")
 				case xdr.OperationTypeLiquidityPoolWithdraw:
 					// fmt.Println("found liquidity pool withdraw")
 				case xdr.OperationTypeInvokeHostFunction:
 					fmt.Println("    -> Handling InvokeHostFunction")
-					go tx_handlers.ProcessSorobanContracts(tx, seq, tx_time)
+					tx_handlers.ProcessSorobanContracts(tx, seq, tx_time)
 				}
 
 			}

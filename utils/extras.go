@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/celerfi/stellar-indexer-go/config"
@@ -20,64 +21,65 @@ import (
 	"github.com/stellar/go/xdr"
 )
 
-// DefaultConfig returns sensible defaults for mainnet
-var rpc_config = models.GetTokenConfig{
-	RPCUrl:     config.RPC_URL,
-	HorizonUrl: "https://horizon.stellar.org",
-	Timeout:    10 * time.Second,
+var (
+	tokenCache   sync.Map
+	rpcSemaphore = make(chan struct{}, 5)
+)
+
+func getRPCConfig() models.GetTokenConfig {
+	return models.GetTokenConfig{
+		RPCUrl:     config.RPC_URL,
+		HorizonUrl: config.HORIZON_URL,
+		Timeout:    10 * time.Second,
+	}
 }
 
-// GetTokenInfo is the main function to get all token information
-// It automatically detects SACs and fetches appropriate data
 func GetSorobanTokenInfo(contractAddress string) (*models.TokenInfo, error) {
+	if val, ok := tokenCache.Load(contractAddress); ok {
+		return val.(*models.TokenInfo), nil
+	}
+
+	rpcSemaphore <- struct{}{}
+	defer func() { <-rpcSemaphore }()
+
+	rpcConfig := getRPCConfig()
 	info := &models.TokenInfo{
 		ContractAddress: contractAddress,
 	}
 
-	// Create ScAddress from contract string
 	scAddr, err := createScAddressFromString(contractAddress)
 	if err != nil {
 		return nil, fmt.Errorf("invalid contract address: %w", err)
 	}
 
-	// Get basic token info from contract
-	info.Symbol, err = getTokenSymbol(scAddr, rpc_config)
+	info.Symbol, err = getTokenSymbol(scAddr, rpcConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get symbol: %w", err)
 	}
-	fmt.Printf("Info Symbol: %s", info.Symbol)
 
-	info.Name, err = getTokenName(scAddr, rpc_config)
+	info.Name, err = getTokenName(scAddr, rpcConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get name: %w", err)
 	}
-	fmt.Printf("Info Name: %s", info.Name)
 
-	info.Decimals, err = getTokenDecimals(scAddr, rpc_config)
+	info.Decimals, err = getTokenDecimals(scAddr, rpcConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get decimals: %w", err)
 	}
-	fmt.Printf("Info Decimal: %s", info.Decimals)
 
-	// Try to get admin address (may fail for some contracts)
-	info.AdminAddress, _ = getTokenAdmin(scAddr, rpc_config)
+	info.AdminAddress, _ = getTokenAdmin(scAddr, rpcConfig)
+	info.TotalSupply, _ = getTokenTotalSupply(scAddr, rpcConfig)
 
-	// Try to get total supply from contract (works for custom tokens)
-	info.TotalSupply, _ = getTokenTotalSupply(scAddr, rpc_config)
-
-	// Check if it's a SAC by parsing the name format
 	assetCode, issuer, isSAC := parseSACName(info.Name)
 	info.IsSAC = isSAC
 
-	// If it's a SAC and we don't have total supply, get it from Horizon
 	if isSAC && info.TotalSupply == "" {
-		supplyInfo, err := getClassicAssetSupply(assetCode, issuer, rpc_config)
+		supplyInfo, err := getClassicAssetSupply(assetCode, issuer, rpcConfig)
 		if err == nil {
 			info.TotalSupply = fmt.Sprintf("%.7f", supplyInfo.Total)
 			info.SupplyBreakdown = supplyInfo
 
-			// Get number of holders
-			assetInfo, err := getClassicAssetInfo(assetCode, issuer, rpc_config)
+			assetInfo, err := getClassicAssetInfo(assetCode, issuer, rpcConfig)
 			if err == nil {
 				info.NumAccounts = assetInfo.NumAccounts
 				info.IsAuthRevocable = assetInfo.Flags.AuthRevocable
@@ -86,19 +88,17 @@ func GetSorobanTokenInfo(contractAddress string) (*models.TokenInfo, error) {
 		}
 	}
 
-	// For non-SACs, get issuer flags if admin is a G-address
 	if !isSAC && strings.HasPrefix(info.AdminAddress, "G") {
-		mintable, revocable, err := getIssuerFlags(info.AdminAddress, rpc_config)
+		mintable, revocable, err := getIssuerFlags(info.AdminAddress, rpcConfig)
 		if err == nil {
 			info.IsMintable = mintable
 			info.IsAuthRevocable = revocable
 		}
 	}
 
+	tokenCache.Store(contractAddress, info)
 	return info, nil
 }
-
-// --- Internal Helper Functions ---
 
 func createScAddressFromString(addressStr string) (xdr.ScAddress, error) {
 	var scAddr xdr.ScAddress
@@ -140,7 +140,7 @@ func createScAddressFromString(addressStr string) (xdr.ScAddress, error) {
 	return scAddr, nil
 }
 
-func callReadOnlyFunction(contractAddress xdr.ScAddress, functionName string, args xdr.ScVec, config models.GetTokenConfig) (xdr.ScVal, error) {
+func callReadOnlyFunction(contractAddress xdr.ScAddress, functionName string, args xdr.ScVec, cfg models.GetTokenConfig) (xdr.ScVal, error) {
 	invokeContractArgs := xdr.InvokeContractArgs{
 		ContractAddress: contractAddress,
 		FunctionName:    xdr.ScSymbol(functionName),
@@ -195,17 +195,17 @@ func callReadOnlyFunction(contractAddress xdr.ScAddress, functionName string, ar
 		return xdr.ScVal{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", config.RPCUrl, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", cfg.RPCUrl, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return xdr.ScVal{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: config.Timeout}
+	client := &http.Client{Timeout: cfg.Timeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return xdr.ScVal{}, fmt.Errorf("failed to make request: %w", err)
@@ -251,8 +251,8 @@ func callReadOnlyFunction(contractAddress xdr.ScAddress, functionName string, ar
 	return scVal, nil
 }
 
-func getTokenSymbol(scAddr xdr.ScAddress, config models.GetTokenConfig) (string, error) {
-	scVal, err := callReadOnlyFunction(scAddr, "symbol", xdr.ScVec{}, config)
+func getTokenSymbol(scAddr xdr.ScAddress, cfg models.GetTokenConfig) (string, error) {
+	scVal, err := callReadOnlyFunction(scAddr, "symbol", xdr.ScVec{}, cfg)
 	if err != nil {
 		return "", err
 	}
@@ -262,8 +262,8 @@ func getTokenSymbol(scAddr xdr.ScAddress, config models.GetTokenConfig) (string,
 	return string(scVal.MustStr()), nil
 }
 
-func getTokenName(scAddr xdr.ScAddress, config models.GetTokenConfig) (string, error) {
-	scVal, err := callReadOnlyFunction(scAddr, "name", xdr.ScVec{}, config)
+func getTokenName(scAddr xdr.ScAddress, cfg models.GetTokenConfig) (string, error) {
+	scVal, err := callReadOnlyFunction(scAddr, "name", xdr.ScVec{}, cfg)
 	if err != nil {
 		return "", err
 	}
@@ -273,8 +273,8 @@ func getTokenName(scAddr xdr.ScAddress, config models.GetTokenConfig) (string, e
 	return string(scVal.MustStr()), nil
 }
 
-func getTokenDecimals(scAddr xdr.ScAddress, config models.GetTokenConfig) (uint32, error) {
-	scVal, err := callReadOnlyFunction(scAddr, "decimals", xdr.ScVec{}, config)
+func getTokenDecimals(scAddr xdr.ScAddress, cfg models.GetTokenConfig) (uint32, error) {
+	scVal, err := callReadOnlyFunction(scAddr, "decimals", xdr.ScVec{}, cfg)
 	if err != nil {
 		return 0, err
 	}
@@ -284,10 +284,10 @@ func getTokenDecimals(scAddr xdr.ScAddress, config models.GetTokenConfig) (uint3
 	return uint32(*scVal.U32), nil
 }
 
-func getTokenTotalSupply(scAddr xdr.ScAddress, config models.GetTokenConfig) (string, error) {
-	scVal, err := callReadOnlyFunction(scAddr, "total_supply", xdr.ScVec{}, config)
+func getTokenTotalSupply(scAddr xdr.ScAddress, cfg models.GetTokenConfig) (string, error) {
+	scVal, err := callReadOnlyFunction(scAddr, "total_supply", xdr.ScVec{}, cfg)
 	if err != nil {
-		return "", nil // Not an error, just means it's probably a SAC
+		return "", nil
 	}
 	if scVal.Type != xdr.ScValTypeScvI128 {
 		return "", nil
@@ -295,8 +295,8 @@ func getTokenTotalSupply(scAddr xdr.ScAddress, config models.GetTokenConfig) (st
 	return int128PartsToBigInt(scVal.MustI128()).String(), nil
 }
 
-func getTokenAdmin(scAddr xdr.ScAddress, config models.GetTokenConfig) (string, error) {
-	scVal, err := callReadOnlyFunction(scAddr, "admin", xdr.ScVec{}, config)
+func getTokenAdmin(scAddr xdr.ScAddress, cfg models.GetTokenConfig) (string, error) {
+	scVal, err := callReadOnlyFunction(scAddr, "admin", xdr.ScVec{}, cfg)
 	if err != nil {
 		return "", err
 	}
@@ -332,16 +332,8 @@ func parseSACName(name string) (assetCode, issuer string, isSAC bool) {
 	return assetCode, issuer, true
 }
 
-type classicAssetInfo struct {
-	NumAccounts int
-	Flags       struct {
-		AuthRevocable bool
-		AuthImmutable bool
-	}
-}
-
-func getClassicAssetInfo(assetCode, issuer string, config models.GetTokenConfig) (*classicAssetInfo, error) {
-	client := &horizonclient.Client{HorizonURL: config.HorizonUrl}
+func getClassicAssetInfo(assetCode, issuer string, cfg models.GetTokenConfig) (*classicAssetInfo, error) {
+	client := &horizonclient.Client{HorizonURL: cfg.HorizonUrl}
 
 	response, err := client.Assets(horizonclient.AssetRequest{
 		ForAssetCode:   assetCode,
@@ -357,7 +349,6 @@ func getClassicAssetInfo(assetCode, issuer string, config models.GetTokenConfig)
 
 	record := response.Embedded.Records[0]
 
-	// Calculate total number of accounts from all categories
 	totalAccounts := int(record.Accounts.Authorized) +
 		int(record.Accounts.AuthorizedToMaintainLiabilities) +
 		int(record.Accounts.Unauthorized)
@@ -374,8 +365,8 @@ func getClassicAssetInfo(assetCode, issuer string, config models.GetTokenConfig)
 	}, nil
 }
 
-func getClassicAssetSupply(assetCode, issuer string, config models.GetTokenConfig) (*models.SupplyBreakdown, error) {
-	client := &horizonclient.Client{HorizonURL: config.HorizonUrl}
+func getClassicAssetSupply(assetCode, issuer string, cfg models.GetTokenConfig) (*models.SupplyBreakdown, error) {
+	client := &horizonclient.Client{HorizonURL: cfg.HorizonUrl}
 
 	response, err := client.Assets(horizonclient.AssetRequest{
 		ForAssetCode:   assetCode,
@@ -405,8 +396,8 @@ func getClassicAssetSupply(assetCode, issuer string, config models.GetTokenConfi
 	}, nil
 }
 
-func getIssuerFlags(adminAddress string, config models.GetTokenConfig) (isMintable, isAuthRevocable bool, err error) {
-	client := &horizonclient.Client{HorizonURL: config.HorizonUrl}
+func getIssuerFlags(adminAddress string, cfg models.GetTokenConfig) (isMintable, isAuthRevocable bool, err error) {
+	client := &horizonclient.Client{HorizonURL: cfg.HorizonUrl}
 
 	account, err := client.AccountDetail(horizonclient.AccountRequest{
 		AccountID: adminAddress,
@@ -415,7 +406,6 @@ func getIssuerFlags(adminAddress string, config models.GetTokenConfig) (isMintab
 		return false, false, err
 	}
 
-	// Check if account is locked (master weight = 0)
 	isLocked := account.Thresholds.MedThreshold == 0 && account.Thresholds.HighThreshold == 0
 	isMintable = !isLocked
 
@@ -434,7 +424,8 @@ func parseFloat(val string) float64 {
 }
 
 func GetClassicTokenInfo(issuerAddress string) (*models.TokenInfo, error) {
-	client := &horizonclient.Client{HorizonURL: rpc_config.HorizonUrl}
+	cfg := getRPCConfig()
+	client := &horizonclient.Client{HorizonURL: cfg.HorizonUrl}
 
 	account, err := client.AccountDetail(horizonclient.AccountRequest{
 		AccountID: issuerAddress,
@@ -462,14 +453,13 @@ func GetClassicTokenInfo(issuerAddress string) (*models.TokenInfo, error) {
 
 	info.ContractAddress = strings.Join([]string{record.Code, issuerAddress}, ":")
 
-	supply, err := getClassicAssetSupply(record.Code, issuerAddress, rpc_config)
+	supply, err := getClassicAssetSupply(record.Code, issuerAddress, cfg)
 	if err == nil {
 		info.TotalSupply = fmt.Sprintf("%.7f", supply.Total)
 		info.SupplyBreakdown = supply
 	}
 
-	// Holder count and flags
-	assetInfo, err := getClassicAssetInfo(record.Code, issuerAddress, rpc_config)
+	assetInfo, err := getClassicAssetInfo(record.Code, issuerAddress, cfg)
 	if err == nil {
 		info.NumAccounts = assetInfo.NumAccounts
 		info.IsAuthRevocable = assetInfo.Flags.AuthRevocable
@@ -480,12 +470,13 @@ func GetClassicTokenInfo(issuerAddress string) (*models.TokenInfo, error) {
 }
 
 func GetReflectorAssets(contractAddr string) ([]string, error) {
+	cfg := getRPCConfig()
 	scAddr, err := createScAddressFromString(contractAddr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid contract address: %w", err)
 	}
 
-	result, err := callReadOnlyFunction(scAddr, "assets", xdr.ScVec{}, rpc_config)
+	result, err := callReadOnlyFunction(scAddr, "assets", xdr.ScVec{}, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("assets() call failed: %w", err)
 	}
@@ -543,12 +534,13 @@ func decodeReflectorAsset(val xdr.ScVal) (string, error) {
 }
 
 func GetSoroswapPairTokens(contractAddr string) (string, string, error) {
+	cfg := getRPCConfig()
 	scAddr, err := createScAddressFromString(contractAddr)
 	if err != nil {
 		return "", "", err
 	}
 
-	t0Val, err := callReadOnlyFunction(scAddr, "token0", xdr.ScVec{}, rpc_config)
+	t0Val, err := callReadOnlyFunction(scAddr, "token0", xdr.ScVec{}, cfg)
 	if err != nil {
 		return "", "", err
 	}
@@ -558,7 +550,7 @@ func GetSoroswapPairTokens(contractAddr string) (string, string, error) {
 	}
 	token0, _ := t0.String()
 
-	t1Val, err := callReadOnlyFunction(scAddr, "token1", xdr.ScVec{}, rpc_config)
+	t1Val, err := callReadOnlyFunction(scAddr, "token1", xdr.ScVec{}, cfg)
 	if err != nil {
 		return "", "", err
 	}
@@ -569,4 +561,16 @@ func GetSoroswapPairTokens(contractAddr string) (string, string, error) {
 	token1, _ := t1.String()
 
 	return token0, token1, nil
+}
+
+func Ptr[T any](v T) *T {
+	return &v
+}
+
+type classicAssetInfo struct {
+	NumAccounts int
+	Flags       struct {
+		AuthRevocable bool
+		AuthImmutable bool
+	}
 }
