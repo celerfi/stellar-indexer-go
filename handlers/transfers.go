@@ -20,8 +20,12 @@ func HandleTransferOperation(
 	var from, to, asset string
 	var amount float64
 
-	sourceAddr := op.SourceAccount.ToAccountId().Address()
-	if sourceAddr == "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF" {
+	var sourceAddr string
+	if op.SourceAccount != nil {
+		sourceAddr = op.SourceAccount.ToAccountId().Address()
+	}
+
+	if sourceAddr == "" || sourceAddr == "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF" {
 		sourceAddr = tx.Envelope.SourceAccount().ToAccountId().Address()
 	}
 

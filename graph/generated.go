@@ -30,6 +30,7 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
 	Query() QueryResolver
+	Stellar() StellarResolver
 }
 
 type DirectiveRoot struct {
@@ -93,6 +94,15 @@ type ComplexityRoot struct {
 
 type QueryResolver interface {
 	Stellar(ctx context.Context) (*model.Stellar, error)
+}
+type StellarResolver interface {
+	Transaction(ctx context.Context, obj *model.Stellar, hash string) (*model.Transaction, error)
+	Transactions(ctx context.Context, obj *model.Stellar, limit *int32, offset *int32) ([]*model.Transaction, error)
+	Token(ctx context.Context, obj *model.Stellar, address string) (*model.Token, error)
+	Tokens(ctx context.Context, obj *model.Stellar, limit *int32, offset *int32) ([]*model.Token, error)
+	Pool(ctx context.Context, obj *model.Stellar, address string) (*model.Pool, error)
+	Pools(ctx context.Context, obj *model.Stellar, limit *int32, offset *int32) ([]*model.Pool, error)
+	TokenOhlcv(ctx context.Context, obj *model.Stellar, tokenAddress string, interval string) ([]*model.OHLCVData, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -1149,7 +1159,8 @@ func (ec *executionContext) _Stellar_transaction(ctx context.Context, field grap
 		field,
 		ec.fieldContext_Stellar_transaction,
 		func(ctx context.Context) (any, error) {
-			return obj.Transaction, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Transaction(ctx, obj, fc.Args["hash"].(string))
 		},
 		nil,
 		ec.marshalOTransaction2ᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐTransaction,
@@ -1162,8 +1173,8 @@ func (ec *executionContext) fieldContext_Stellar_transaction(ctx context.Context
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "blockTime":
@@ -1209,7 +1220,8 @@ func (ec *executionContext) _Stellar_transactions(ctx context.Context, field gra
 		field,
 		ec.fieldContext_Stellar_transactions,
 		func(ctx context.Context) (any, error) {
-			return obj.Transactions, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Transactions(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
 		ec.marshalNTransaction2ᚕᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐTransactionᚄ,
@@ -1222,8 +1234,8 @@ func (ec *executionContext) fieldContext_Stellar_transactions(ctx context.Contex
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "blockTime":
@@ -1269,7 +1281,8 @@ func (ec *executionContext) _Stellar_token(ctx context.Context, field graphql.Co
 		field,
 		ec.fieldContext_Stellar_token,
 		func(ctx context.Context) (any, error) {
-			return obj.Token, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Token(ctx, obj, fc.Args["address"].(string))
 		},
 		nil,
 		ec.marshalOToken2ᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐToken,
@@ -1282,8 +1295,8 @@ func (ec *executionContext) fieldContext_Stellar_token(ctx context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "contractAddress":
@@ -1323,7 +1336,8 @@ func (ec *executionContext) _Stellar_tokens(ctx context.Context, field graphql.C
 		field,
 		ec.fieldContext_Stellar_tokens,
 		func(ctx context.Context) (any, error) {
-			return obj.Tokens, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Tokens(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
 		ec.marshalNToken2ᚕᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐTokenᚄ,
@@ -1336,8 +1350,8 @@ func (ec *executionContext) fieldContext_Stellar_tokens(ctx context.Context, fie
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "contractAddress":
@@ -1377,7 +1391,8 @@ func (ec *executionContext) _Stellar_pool(ctx context.Context, field graphql.Col
 		field,
 		ec.fieldContext_Stellar_pool,
 		func(ctx context.Context) (any, error) {
-			return obj.Pool, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Pool(ctx, obj, fc.Args["address"].(string))
 		},
 		nil,
 		ec.marshalOPool2ᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐPool,
@@ -1390,8 +1405,8 @@ func (ec *executionContext) fieldContext_Stellar_pool(ctx context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "poolAddress":
@@ -1433,7 +1448,8 @@ func (ec *executionContext) _Stellar_pools(ctx context.Context, field graphql.Co
 		field,
 		ec.fieldContext_Stellar_pools,
 		func(ctx context.Context) (any, error) {
-			return obj.Pools, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().Pools(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
 		ec.marshalNPool2ᚕᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐPoolᚄ,
@@ -1446,8 +1462,8 @@ func (ec *executionContext) fieldContext_Stellar_pools(ctx context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "poolAddress":
@@ -1489,7 +1505,8 @@ func (ec *executionContext) _Stellar_tokenOHLCV(ctx context.Context, field graph
 		field,
 		ec.fieldContext_Stellar_tokenOHLCV,
 		func(ctx context.Context) (any, error) {
-			return obj.TokenOhlcv, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Stellar().TokenOhlcv(ctx, obj, fc.Args["tokenAddress"].(string), fc.Args["interval"].(string))
 		},
 		nil,
 		ec.marshalNOHLCVData2ᚕᚖgithubᚗcomᚋcelerfiᚋstellarᚑindexerᚑgoᚋgraphᚋmodelᚐOHLCVDataᚄ,
@@ -1502,8 +1519,8 @@ func (ec *executionContext) fieldContext_Stellar_tokenOHLCV(ctx context.Context,
 	fc = &graphql.FieldContext{
 		Object:     "Stellar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "bucket":
@@ -3615,31 +3632,248 @@ func (ec *executionContext) _Stellar(ctx context.Context, sel ast.SelectionSet, 
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Stellar")
 		case "transaction":
-			out.Values[i] = ec._Stellar_transaction(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_transaction(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "transactions":
-			out.Values[i] = ec._Stellar_transactions(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_transactions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "token":
-			out.Values[i] = ec._Stellar_token(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_token(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "tokens":
-			out.Values[i] = ec._Stellar_tokens(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_tokens(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "pool":
-			out.Values[i] = ec._Stellar_pool(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_pool(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "pools":
-			out.Values[i] = ec._Stellar_pools(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_pools(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "tokenOHLCV":
-			out.Values[i] = ec._Stellar_tokenOHLCV(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Stellar_tokenOHLCV(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

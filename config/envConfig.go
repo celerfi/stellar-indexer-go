@@ -17,4 +17,5 @@ var (
 )
 
 var RPC_URL = os.Getenv("RPC_URL")
+var HORIZON_URL = os.Getenv("HORIZON_URL")
 var DEPLOYMENT_ENVIRONMENT = os.Getenv("DEPLOYMENT_ENVIRONMENT")

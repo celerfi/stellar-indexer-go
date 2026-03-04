@@ -377,6 +377,9 @@ func InsertTransfers(transfers []models.Transfer) {
 
 func RefreshAnalytics() error {
 	_, err := db.Exec(context.Background(), "SELECT refresh_analytics_views()")
+	if err != nil {
+		_, err = db.Exec(context.Background(), "REFRESH MATERIALIZED VIEW pool_reserves; REFRESH MATERIALIZED VIEW pool_tvl; REFRESH MATERIALIZED VIEW pool_volume_24h;")
+	}
 	return err
 }
 

@@ -129,6 +129,22 @@ autobind:
 # modelgen, the others will be allowed when binding to fields. Configure them to
 # your liking
 models:
+  Stellar:
+    fields:
+      transaction:
+        resolver: true
+      transactions:
+        resolver: true
+      token:
+        resolver: true
+      tokens:
+        resolver: true
+      pool:
+        resolver: true
+      pools:
+        resolver: true
+      tokenOHLCV:
+        resolver: true
   DateTime:
     model:
       - github.com/99designs/gqlgen/graphql.Time

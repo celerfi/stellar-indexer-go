@@ -9,7 +9,7 @@ SELECT
     MAX(ts) as last_update
 FROM liquidity_actions
 GROUP BY pool_address, token_a, token_b
-WITH NO DATA;
+WITH DATA;
 
 -- Real-time TVL per pool calculated by multiplying reserves by latest USD price
 CREATE MATERIALIZED VIEW IF NOT EXISTS pool_tvl AS
@@ -25,7 +25,7 @@ SELECT
 FROM pool_reserves r
 LEFT JOIN latest_prices pa ON r.token_a = pa.asset_id
 LEFT JOIN latest_prices pb ON r.token_b = pb.asset_id
-WITH NO DATA;
+WITH DATA;
 
 -- 24-hour trading volume per pool
 CREATE MATERIALIZED VIEW IF NOT EXISTS pool_volume_24h AS
@@ -37,7 +37,7 @@ SELECT
 FROM transaction_models
 WHERE block_time > NOW() - INTERVAL '24 hours'
 GROUP BY pool_address, dex_name
-WITH NO DATA;
+WITH DATA;
 
 -- Refresh function to be called periodically
 CREATE OR REPLACE FUNCTION refresh_analytics_views()
