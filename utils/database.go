@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/celerfi/stellar-indexer-go/config"
 	"github.com/celerfi/stellar-indexer-go/models"
@@ -227,4 +228,338 @@ func InsertPriceTicks(ticks []models.PriceTick) {
 	if err = tx.Commit(context.Background()); err != nil {
 		fmt.Printf("Error committing price ticks: %v\n", err)
 	}
+}
+
+func InsertBlendEvents(events []models.BlendEvent) {
+	if len(events) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertBlendEvents, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"blend_events"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "contract_id",
+				"event_type", "user_address", "asset_id", "amount",
+				"liquidator_address", "collateral_asset", "debt_asset",
+			},
+			pgx.CopyFromSlice(len(events), func(i int) ([]interface{}, error) {
+				e := events[i]
+				return []interface{}{
+					e.Timestamp, e.LedgerSequence, e.TransactionHash, e.ContractID,
+					e.EventType, e.User, e.Asset, e.Amount,
+					e.Liquidator, e.CollateralAsset, e.DebtAsset,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting blend events, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing blend events: %v\n", err)
+	}
+}
+
+func InsertLiquidityActions(actions []models.LiquidityAction) {
+	if len(actions) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertLiquidityActions, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"liquidity_actions"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "pool_address",
+				"action_type", "user_address", "amount_a", "amount_b",
+				"token_a", "token_b",
+			},
+			pgx.CopyFromSlice(len(actions), func(i int) ([]interface{}, error) {
+				a := actions[i]
+				return []interface{}{
+					a.Timestamp, a.LedgerSequence, a.TransactionHash, a.PoolAddress,
+					a.ActionType, a.User, a.AmountA, a.AmountB,
+					a.TokenA, a.TokenB,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting liquidity actions, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing liquidity actions: %v\n", err)
+	}
+}
+
+func InsertTransfers(transfers []models.Transfer) {
+	if len(transfers) == 0 {
+		return
+	}
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		fmt.Printf("Error starting transaction: %v\n", err)
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in InsertTransfers, rolling back: %v\n", r)
+			tx.Rollback(context.Background())
+		}
+	}()
+
+	err = func() error {
+		_, err = tx.CopyFrom(
+			context.Background(),
+			pgx.Identifier{"transfers"},
+			[]string{
+				"ts", "ledger_seq", "tx_hash", "operation_index",
+				"from_address", "to_address", "asset_id", "amount",
+			},
+			pgx.CopyFromSlice(len(transfers), func(i int) ([]interface{}, error) {
+				t := transfers[i]
+				return []interface{}{
+					t.Timestamp, t.LedgerSequence, t.TransactionHash, t.OperationIndex,
+					t.From, t.To, t.Asset, t.Amount,
+				}, nil
+			}),
+		)
+		return err
+	}()
+
+	if err != nil {
+		fmt.Printf("Error inserting transfers, rolling back: %v\n", err)
+		tx.Rollback(context.Background())
+		return
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		fmt.Printf("Error committing transfers: %v\n", err)
+	}
+}
+
+func RefreshAnalytics() error {
+	_, err := db.Exec(context.Background(), "SELECT refresh_analytics_views()")
+	if err != nil {
+		_, err = db.Exec(context.Background(), "REFRESH MATERIALIZED VIEW pool_reserves; REFRESH MATERIALIZED VIEW pool_tvl; REFRESH MATERIALIZED VIEW pool_volume_24h;")
+	}
+	return err
+}
+
+func GetTransactionByHash(hash string) (*models.TransactionModels, error) {
+	var tx models.TransactionModels
+	var orderMatchesJSON []byte
+	err := db.QueryRow(context.Background(),
+		"SELECT block_time, ledger_sequence, transaction_hash, operation_index, dex_name, token_in, token_out, amount_bought, amount_sold, status, order_matches FROM transaction_models WHERE transaction_hash = $1",
+		hash).Scan(&tx.BlockTime, &tx.LedgerSequence, &tx.TransactionHash, &tx.OperationIndex, &tx.DexName, &tx.TokenIn, &tx.TokenOut, &tx.AmountBought, &tx.AmountSold, &tx.Status, &orderMatchesJSON)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(orderMatchesJSON, &tx.OrderMatches)
+	return &tx, nil
+}
+
+func GetTransactions(limit, offset int) ([]models.TransactionModels, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT block_time, ledger_sequence, transaction_hash, operation_index, dex_name, token_in, token_out, amount_bought, amount_sold, status FROM transaction_models ORDER BY block_time DESC LIMIT $1 OFFSET $2",
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txs []models.TransactionModels
+	for rows.Next() {
+		var tx models.TransactionModels
+		if err := rows.Scan(&tx.BlockTime, &tx.LedgerSequence, &tx.TransactionHash, &tx.OperationIndex, &tx.DexName, &tx.TokenIn, &tx.TokenOut, &tx.AmountBought, &tx.AmountSold, &tx.Status); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
+func GetTokenByAddress(address string) (*models.TokenInfo, error) {
+	var t models.TokenInfo
+	var supplyBreakdownJSON []byte
+	err := db.QueryRow(context.Background(),
+		"SELECT contract_address, symbol, name, decimals, total_supply, is_sac, supply_breakdown FROM token_info WHERE contract_address = $1",
+		address).Scan(&t.ContractAddress, &t.Symbol, &t.Name, &t.Decimals, &t.TotalSupply, &t.IsSAC, &supplyBreakdownJSON)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(supplyBreakdownJSON, &t.SupplyBreakdown)
+	return &t, nil
+}
+
+func GetTokens(limit, offset int) ([]models.TokenInfo, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT contract_address, symbol, name, decimals, total_supply, is_sac FROM token_info LIMIT $1 OFFSET $2",
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tokens []models.TokenInfo
+	for rows.Next() {
+		var t models.TokenInfo
+		if err := rows.Scan(&t.ContractAddress, &t.Symbol, &t.Name, &t.Decimals, &t.TotalSupply, &t.IsSAC); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, nil
+}
+
+func GetPoolByAddress(address string) (map[string]interface{}, error) {
+	var p struct {
+		PoolAddress string
+		TokenA      string
+		TokenB      string
+		FeeBps      int32
+		Type        string
+		TvlUsd      float64
+		Volume24h   float64
+	}
+	err := db.QueryRow(context.Background(), `
+		SELECT p.pool_address, p.token_a, p.token_b, p.fee_bps, p.type, 
+		       COALESCE(t.tvl_usd, 0) as tvl_usd, 
+		       COALESCE(v.volume_token_in, 0) as volume_24h
+		FROM liquidity_pools p
+		LEFT JOIN pool_tvl t ON p.pool_address = t.pool_address
+		LEFT JOIN pool_volume_24h v ON p.pool_address = v.pool_address
+		WHERE p.pool_address = $1`,
+		address).Scan(&p.PoolAddress, &p.TokenA, &p.TokenB, &p.FeeBps, &p.Type, &p.TvlUsd, &p.Volume24h)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"poolAddress": p.PoolAddress,
+		"tokenA":      p.TokenA,
+		"tokenB":      p.TokenB,
+		"feeBps":      p.FeeBps,
+		"type":        p.Type,
+		"tvlUsd":      p.TvlUsd,
+		"volume24h":   p.Volume24h,
+	}, nil
+}
+
+func GetPools(limit, offset int) ([]map[string]interface{}, error) {
+	rows, err := db.Query(context.Background(), `
+		SELECT p.pool_address, p.token_a, p.token_b, p.fee_bps, p.type, 
+		       COALESCE(t.tvl_usd, 0) as tvl_usd, 
+		       COALESCE(v.volume_token_in, 0) as volume_24h
+		FROM liquidity_pools p
+		LEFT JOIN pool_tvl t ON p.pool_address = t.pool_address
+		LEFT JOIN pool_volume_24h v ON p.pool_address = v.pool_address
+		LIMIT $1 OFFSET $2`,
+		limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pools []map[string]interface{}
+	for rows.Next() {
+		var p struct {
+			PoolAddress string
+			TokenA      string
+			TokenB      string
+			FeeBps      int32
+			Type        string
+			TvlUsd      float64
+			Volume24h   float64
+		}
+		if err := rows.Scan(&p.PoolAddress, &p.TokenA, &p.TokenB, &p.FeeBps, &p.Type, &p.TvlUsd, &p.Volume24h); err != nil {
+			return nil, err
+		}
+		pools = append(pools, map[string]interface{}{
+			"poolAddress": p.PoolAddress,
+			"tokenA":      p.TokenA,
+			"tokenB":      p.TokenB,
+			"feeBps":      p.FeeBps,
+			"type":        p.Type,
+			"tvlUsd":      p.TvlUsd,
+			"volume24h":   p.Volume24h,
+		})
+	}
+	return pools, nil
+}
+
+func GetTokenOHLCV(address, interval string) ([]map[string]interface{}, error) {
+	var table string
+	switch interval {
+	case "1m":
+		table = "ohlcv_1min"
+	case "1h":
+		table = "ohlcv_1hour"
+	case "1d":
+		table = "ohlcv_1day"
+	default:
+		return nil, fmt.Errorf("invalid interval")
+	}
+
+	rows, err := db.Query(context.Background(),
+		fmt.Sprintf("SELECT bucket, open, high, low, close, volume_usd FROM %s WHERE asset_id = $1 ORDER BY bucket DESC LIMIT 100", table),
+		address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var bucket time.Time
+		var open, high, low, close, volume float64
+		if err := rows.Scan(&bucket, &open, &high, &low, &close, &volume); err != nil {
+			return nil, err
+		}
+		results = append(results, map[string]interface{}{
+			"bucket":    bucket,
+			"open":      open,
+			"high":      high,
+			"low":       low,
+			"close":     close,
+			"volumeUsd": volume,
+		})
+	}
+	return results, nil
 }

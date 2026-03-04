@@ -1,3 +1,5 @@
+/misc
+dev.env
 # the binary
 stellar-indexer-go
 

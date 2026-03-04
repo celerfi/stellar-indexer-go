@@ -1,0 +1,19 @@
+{
+  "name": "stellar-indexer-go",
+  "version": "1.0.0",
+  "description": "CelerFi Stellar Indexer with TimescaleDB and GraphQL",
+  "main": "main.go",
+  "scripts": {
+    "db:start": "docker run -d --name postgres-demo -e POSTGRES_USER=skipp -e POSTGRES_PASSWORD=password -e POSTGRES_DB=stellar_indexer -p 5432:5432 timescale/timescaledb:latest-pg14",
+    "db:init": "sleep 5 && psql -h localhost -U skipp -d stellar_indexer -f main.sql && psql -h localhost -U skipp -d stellar_indexer -f token_info.sql && psql -h localhost -U skipp -d stellar_indexer -f liquidity_pools.sql && psql -h localhost -U skipp -d stellar_indexer -f liquidity_actions.sql && psql -h localhost -U skipp -d stellar_indexer -f price_ticks.sql && psql -h localhost -U skipp -d stellar_indexer -f analytics_views.sql && psql -h localhost -U skipp -d stellar_indexer -f transfers.sql && psql -h localhost -U skipp -d stellar_indexer -f seed_assets.sql && psql -h localhost -U skipp -d stellar_indexer -c 'ALTER TABLE price_ticks DROP CONSTRAINT IF EXISTS price_ticks_asset_id_fkey;'",
+    "db:stop": "docker stop postgres-demo",
+    "db:clean": "docker stop postgres-demo && docker rm postgres-demo",
+    "build": "go build .",
+    "dev": "go run .",
+    "inspect:trades": "psql -h localhost -U skipp -d stellar_indexer -c 'SELECT block_time, transaction_hash, dex_name, status FROM transaction_models ORDER BY block_time DESC LIMIT 5;'",
+    "inspect:prices": "psql -h localhost -U skipp -d stellar_indexer -c 'SELECT ts, asset_id, price_usd, source_id FROM price_ticks ORDER BY ts DESC LIMIT 5;'",
+    "inspect:tvl": "psql -h localhost -U skipp -d stellar_indexer -c 'SELECT pool_address, tvl_usd FROM pool_tvl ORDER BY tvl_usd DESC LIMIT 5;'"
+  },
+  "author": "CelerFi",
+  "license": "ISC"
+}

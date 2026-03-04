@@ -1,0 +1,74 @@
+scalar DateTime
+
+type Query {
+  stellar: Stellar!
+}
+
+type Stellar {
+  # Transaction queries
+  transaction(hash: String!): Transaction
+  transactions(
+    limit: Int
+    offset: Int
+  ): [Transaction!]!
+
+  
+  token(address: String!): Token
+  tokens(
+    limit: Int
+    offset: Int
+  ): [Token!]!
+
+  
+  pool(address: String!): Pool
+  pools(
+    limit: Int
+    offset: Int
+  ): [Pool!]!
+
+  
+  tokenOHLCV(
+    tokenAddress: String!
+    interval: String! # 1m, 1h, 1d
+  ): [OHLCVData!]!
+}
+
+type Transaction {
+  blockTime: DateTime!
+  transactionHash: String!
+  ledgerSequence: Int!
+  dexName: String
+  tokenIn: String
+  tokenOut: String
+  amountBought: Float
+  amountSold: Float
+  status: String
+}
+
+type Token {
+  contractAddress: String!
+  symbol: String!
+  name: String!
+  decimals: Int!
+  totalSupply: String!
+  isSAC: Boolean!
+}
+
+type Pool {
+  poolAddress: String!
+  tokenA: String!
+  tokenB: String!
+  feeBps: Int
+  type: String
+  tvlUsd: Float
+  volume24h: Float
+}
+
+type OHLCVData {
+  bucket: DateTime!
+  open: Float
+  high: Float
+  low: Float
+  close: Float
+  volumeUsd: Float
+}
